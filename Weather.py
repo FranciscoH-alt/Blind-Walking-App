@@ -13,9 +13,9 @@ class WeatherApp(QWidget):
         self.temperature_label = QLabel(self)
         self.emoji_label = QLabel(self)
         self.description_label = QLabel(self)
-        self.tts_engine = pyttsx3.init(driverName='nsss')
+        self.tts_engine = pyttsx3.init(driverName='sapi5')
         voices = self.tts_engine.getProperty('voices')
-        self.tts_engine.setProperty('voice', voices[14].id)  # Or whichever index worked
+        self.tts_engine.setProperty('voice', voices[0].id)  # Or whichever index worked
         self.tts_engine.setProperty('volume', 1.0)
         self.tts_engine.setProperty('rate', 150)
         self.initUI()
