@@ -1,11 +1,116 @@
 <!DOCTYPE html>
-<html lang='en'>
-    <head>
-        <title>Guide Dog</title>
-        <meta charset = "UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body bgcolor='#D3D3D3'>
-        <h1>Guide Dog</h1>
-    </body>
+<html>
+  <head>
+    <title>Blind GPS Tracker</title>
+    <style>
+      #map {
+        height: 100vh;
+        width: 100%;
+      }
+      #btn {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 20px;
+        font-size: 16px;
+        z-index: 999;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="btn">Retrace Steps</button>
+    <div id="map"></div>
+
+    <script>
+      let map, pathLine, marker;
+      let path = [];
+      let returning = false;
+
+      function speak(text) {
+        const utter = new SpeechSynthesisUtterance(text);
+        speechSynthesis.speak(utter);
+      }
+
+      function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+          zoom: 18,
+          center: { lat: 42.672, lng: -83.215 },
+        });
+
+        pathLine = new google.maps.Polyline({
+          path: [],
+          geodesic: true,
+          strokeColor: "#FF0000",
+          strokeOpacity: 1.0,
+          strokeWeight: 4,
+          map: map,
+        });
+
+        marker = new google.maps.Marker({
+          map: map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: "#00F",
+            fillOpacity: 1,
+            strokeWeight: 2,
+          },
+        });
+
+        if (navigator.geolocation) {
+          navigator.geolocation.watchPosition(
+            (pos) => {
+              const latLng = {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+              };
+              marker.setPosition(latLng);
+              map.setCenter(latLng);
+
+              if (!returning) {
+                path.push(latLng);
+                pathLine.setPath(path);
+              }
+            },
+            () => alert("GPS not allowed"),
+            { enableHighAccuracy: true, maximumAge: 0 }
+          );
+        }
+
+        document.getElementById("btn").onclick = () => {
+          if (path.length < 2) return;
+          returning = true;
+
+          const reversed = [...path].reverse();
+          let i = 0;
+          const returnLine = new google.maps.Polyline({
+            path: [],
+            strokeColor: "#00AA00",
+            strokeWeight: 4,
+            map: map,
+          });
+
+          const interval = setInterval(() => {
+            if (i >= reversed.length) {
+              speak("You are back at the start.");
+              clearInterval(interval);
+              return;
+            }
+
+            const current = reversed[i];
+            returnLine.getPath().push(current);
+            marker.setPosition(current);
+            speak(`Step ${i + 1}`);
+            i++;
+          }, 2000);
+        };
+      }
+    </script>
+
+    <!-- 🔑 Use your real Google Maps API key here -->
+    <script async
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD6wPLoxMXM_ToFAdhGN7WbMj6QGSH8wWI&callback=initMap">
+    </script>
+  </body>
 </html>
