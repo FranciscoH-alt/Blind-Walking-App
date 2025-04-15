@@ -3,12 +3,15 @@ import requests
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import Qt
 import pyttsx3
+import threading
 
 class WeatherApp(QWidget):
     def __init__(self):
         super().__init__()
         self.city_label = QLabel("Enter city name: ", self)
         self.city_input = QLineEdit(self)
+        self.state_label = QLabel("Enter state ncode: ", self)
+        self.state_input = QLineEdit(self)
         self.get_weather_button = QPushButton("Get Weather", self)
         self.temperature_label = QLabel(self)
         self.emoji_label = QLabel(self)
@@ -27,6 +30,8 @@ class WeatherApp(QWidget):
 
         vbox.addWidget(self.city_label)
         vbox.addWidget(self.city_input)
+        vbox.addWidget(self.state_label)
+        vbox.addWidget(self.state_input)    
         vbox.addWidget(self.get_weather_button)
         vbox.addWidget(self.temperature_label)
         vbox.addWidget(self.emoji_label)
@@ -36,12 +41,16 @@ class WeatherApp(QWidget):
 
         self.city_label.setAlignment(Qt.AlignCenter)
         self.city_input.setAlignment(Qt.AlignCenter)
+        self.state_label.setAlignment(Qt.AlignCenter)
+        self.state_input.setAlignment(Qt.AlignCenter)
         self.temperature_label.setAlignment(Qt.AlignCenter)
         self.emoji_label.setAlignment(Qt.AlignCenter)
         self.description_label.setAlignment(Qt.AlignCenter)
 
         self.city_label.setObjectName("city_label")
         self.city_input.setObjectName("city_input")
+        self.state_label.setObjectName("state_label")
+        self.state_input.setObjectName("state_input")
         self.get_weather_button.setObjectName("get_weather_button")
         self.temperature_label.setObjectName("temperature_label")
         self.emoji_label.setObjectName("emoji_label")
@@ -51,11 +60,11 @@ class WeatherApp(QWidget):
             QLabel, QPushButton{
                 font-family: calibri;
             }
-            QLabel#city_label{
+            QLabel#city_label, QLabel#state_label{
                 font-size: 30px;
                 font-style: italic;
             }
-            QLineEdit#city_input{
+            QLineEdit#city_input, QLineEdit#state_input{
                 font-size: 40px;
             }
             QPushButton#get_weather_button{
@@ -76,40 +85,35 @@ class WeatherApp(QWidget):
 
         self.get_weather_button.clicked.connect(self.get_weather)
 
+        self.start_timer()
+
     def get_weather(self):
 
         api_key = "97965af61bdc928256587c0420413016"
-        city = self.city_input.text()
-        url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
+        city = self.city_input.text().strip()
+        state = self.state_input.text().strip().upper()
+
+        geocoding_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city},{state},US&appid={api_key}"
 
         try:
-            response = requests.get(url)
-            response.raise_for_status()
-            data = response.json()
+            geocoding_response = requests.get(geocoding_url)
+            geocoding_response.raise_for_status()
+            geocoding_data = geocoding_response.json()
 
-            if data["cod"] == 200:
-                self.display_weather(data)
+            if len(geocoding_data) == 0:
+                self.display_error("Location not found")
+                return
+            
+            latitude = geocoding_data[0]['lat']
+            longitude = geocoding_data[0]['lon']
 
-        except requests.exceptions.HTTPError as http_error:
-            match response.status_code:
-                case 400:
-                    self.display_error("Bad request:\nPlease check your input")
-                case 401:
-                    self.display_error("Unauthorized:\nInvalid API key")
-                case 403:
-                    self.display_error("Forbidden:\nAccess is denied")
-                case 404:
-                    self.display_error("Not found:\nCity not found")
-                case 500:
-                    self.display_error("Internal Server Error:\nPlease try again later")
-                case 502:
-                    self.display_error("Bad Gateway:\nInvalid response from the server")
-                case 503:
-                    self.display_error("Service Unavailable:\nServer is down")
-                case 504:
-                    self.display_error("Gateway Timeout:\nNo response from the server")
-                case _:
-                    self.display_error(f"HTTP error occurred:\n{http_error}")
+            weather_url = f"https://api.openweathermap.org/data/2.5/weather?lat={latitude}&lon={longitude}&appid={api_key}"
+            weather_response = requests.get(weather_url)
+            weather_response.raise_for_status()
+            weather_data = weather_response.json()
+
+            if weather_data["cod"] == 200:
+                self.display_weather(weather_data)
 
         except requests.exceptions.ConnectionError:
             self.display_error("Connection Error:\nCheck your internet connection")
@@ -127,9 +131,14 @@ class WeatherApp(QWidget):
         self.description_label.clear()
         self.speak(message)
 
+    def start_timer(self):
+        timer = threading.Timer(1, self.speak, args=("Please enter your city and state code",))
+        timer.start()
+
     def speak(self, text):
         self.tts_engine.say(text)
         self.tts_engine.runAndWait()
+
 
     def display_weather(self, data):
         self.temperature_label.setStyleSheet("font-size: 75px;")
@@ -144,7 +153,8 @@ class WeatherApp(QWidget):
         self.description_label.setText(weather_description)
 
         city = self.city_input.text()
-        self.speak(f"The current temperature in {city} is {temperature_f:.0f} degrees Fahrenheit with {weather_description}.")
+        state = self.state_input.text()
+        self.speak(f"The current temperature in {city}, {state} is {temperature_f:.0f} degrees Fahrenheit with {weather_description}.")
 
     @staticmethod
     def get_weather_emoji(weather_id):
