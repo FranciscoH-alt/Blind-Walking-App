@@ -5,15 +5,13 @@
 import speech_recognition as sr
 import pyttsx3
 import keyboard
+import time
 
 # Initialize the recognizer
 r = sr.Recognizer()
 
-startSet = {"start", "start walk", "starts"}
-endSet = {"end", "end walk", "ends"}
 yesSet = {"yes", "ye"}
 noSet = {"no"}
-weatherSet = {"what's the weather", "what is the weather"}
 
 # Function to convert text to
 # speech
@@ -31,66 +29,46 @@ def userCommand(input):
     elif input in noSet:
         print("No command has been confirmed")
         speakText("No received")
+        
 
     else:
         print("Invalid command")
         speakText("Invalid command")
 
-    """
-    if input in startSet:
-        print("Walk has been started.")
-        speakText("Walk has been started.")
-
-    elif input in endSet:
-        print("Walk has ended.")
-        speakText("Walk has been ended.")
-
-    elif input in weatherSet:
-        print("Relaying weather...")
-        speakText("The weather is currently...")
-
-    else:
-        print("Invalid command.")
-        speakText("Please try again.")
-    """
-
 # Loop infinitely for user to
 # speak
 
-#Takes user keyboard input to start listening 
+#Takes user keyboard input to start listening l
 def startListening():
+    print("Press 'l' to start listening for 5 seconds...")
 
     while True:
         if keyboard.is_pressed('l'):
-            while (1):
+            print("Listening started for 5 seconds...")
+            start_time = time.time()
 
-                # Exception handling to handle
-                # exceptions at the runtime
+            while True:
+                if time.time() - start_time > 5:
+                    print("Listening timed out.")
+                    break
+
                 try:
-
-                    # use the microphone as source for input.
                     with sr.Microphone() as source2:
-
-                        # wait for a second to let the recognizer
-                        # adjust the energy threshold based on
-                        # the surrounding noise level
                         r.adjust_for_ambient_noise(source2, duration=0.2)
+                        print("Listening...")
+                        audio2 = r.listen(source2, timeout=5)
 
-                        # listens for the user's input
-                        audio2 = r.listen(source2)
-
-                        # Using google to recognize audio
                         MyText = r.recognize_google(audio2)
                         MyText = MyText.lower()
 
-
-                        print("Did you say",MyText)
+                        print("Did you say:", MyText)
                         userCommand(MyText)
 
-
+                except sr.WaitTimeoutError:
+                    print("No speech detected within timeout.")
+                    continue
                 except sr.RequestError as e:
                     print("Could not request results; {0}".format(e))
-
                 except sr.UnknownValueError:
                     print("Unknown error encountered.")
 
