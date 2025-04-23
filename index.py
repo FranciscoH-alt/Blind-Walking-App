@@ -76,6 +76,7 @@ class GuideDogApp(QWidget):
             weather_path = os.path.join(dir_name, 'Weather.py')
             # Launch the Weather.py script
             subprocess.Popen(['python', weather_path], shell=True)
+            self.close()
         except Exception as e:
             print(f"Failed to launch weather app: {e}")
 
