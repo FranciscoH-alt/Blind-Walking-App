@@ -63,12 +63,7 @@ Window {
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 10
-
-        Button {
-            text: "Create Route"
-            onClicked: routePlanner.create_route(42.672, -83.215, 42.6735, -83.2165)
-        }
-
+        
         Button {
             text: "Start Walk"
             onClicked: gpsNav.start_walk()

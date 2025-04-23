@@ -11,44 +11,14 @@ import geocoder
 import googlemaps  # Add this import
 import threading  # Add this import
 
-# Simulated path (lat, lon)
-path = [
-    (42.672, -83.215),
-    (42.6725, -83.2155),
-    (42.673, -83.216),
-    (42.6735, -83.2165)
-]
 
-def get_arrow_emoji(start, end):
-    dx = end[1] - start[1]  # longitude difference
-    dy = end[0] - start[0]  # latitude difference
-    angle = math.degrees(math.atan2(dy, dx))  # angle in degrees
-
-    if -22.5 < angle <= 22.5:
-        return "→"
-    elif 22.5 < angle <= 67.5:
-        return "⇗"
-    elif 67.5 < angle <= 112.5:
-        return "↑"
-    elif 112.5 < angle <= 157.5:
-        return "⇖"
-    elif angle > 157.5 or angle <= -157.5:
-        return "←"
-    elif -157.5 < angle <= -112.5:
-        return "⇙"
-    elif -112.5 < angle <= -67.5:
-        return "↓"
-    elif -67.5 < angle <= -22.5:
-        return "⇘"
-    else:
-        return "↑"
     
 class GPSNavigator(QObject):
     def __init__(self, engine):
         super().__init__()
         self.engine = None  # Remove TTS engine initialization
         self.qml_engine = engine
-        self.gmaps_client = googlemaps.Client(key="AIzaSyA1w757VIbuBAZ2rAm3b1TFlZ4osr71hgA") 
+        self.gmaps_client = googlemaps.Client(key="AIzaSyA1w757VIbuBAZ2rAm3b1TFlZ4osr71hgA")  # Replace with your API key
 
         root_objects = engine.rootObjects()
         if not root_objects:
@@ -65,6 +35,8 @@ class GPSNavigator(QObject):
         self.path_to_home_steps = []  # Initialize as an empty list
         self.no_route_message_shown = False  # Track if "No route to follow" has been shown
         self.last_announced_direction = None  # Track the last announced direction
+
+        self.start_walk()  # Automatically trigger start_walk when the application is opened
 
     @pyqtSlot()
     def start_walk(self):
@@ -215,8 +187,6 @@ class GPSNavigator(QObject):
             if self.route_index < len(self.path_to_home_steps):
                 next_step = self.path_to_home_steps[self.route_index]
                 self.announce_turn(next_step)
-        elif distance_to_next < 100:  # Notify the user when close to a turn
-            print(f"Approaching turn in {int(distance_to_next)} feet.")
         else:
             # Notify the user of the current direction only if it changes
             self.announce_turn(next_step)
@@ -273,7 +243,7 @@ class KeyHandler(QObject):
 if __name__ == '__main__':
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
-    engine.load(QUrl.fromLocalFile("map_view.qml"))
+    engine.load(QUrl.fromLocalFile("GPSTracking.qml"))
 
     gps_nav = GPSNavigator(engine)
     engine.rootContext().setContextProperty("gpsNav", gps_nav)
