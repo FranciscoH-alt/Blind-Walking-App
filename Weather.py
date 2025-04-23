@@ -1,27 +1,60 @@
 import sys
 import requests
+import queue
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import Qt
 import pyttsx3
 import threading
+# from threading import Lock
+# import speech_to_text as stt
+
+class TTSManager:
+    def __init__(self):
+        self.tts_engine = pyttsx3.init(driverName='sapi5')
+        voices = self.tts_engine.getProperty('voices')
+        self.tts_engine.setProperty('voice', voices[0].id)
+        self.tts_engine.setProperty('volume', 1.0)
+        self.tts_engine.setProperty('rate', 150)
+        self.queue = queue.Queue()
+        self.thread = threading.Thread(target=self._process_queue, daemon=True)
+        self.thread.start()
+
+    def speak(self, text):
+        # Add the text to the queue
+        self.queue.put(text)
+
+    def stop(self):
+        # Stop the current speech
+        self.tts_engine.stop()
+
+    def _process_queue(self):
+        while True:
+            # Get the next text from the queue
+            text = self.queue.get()
+            if text is None:
+                break
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
 
 class WeatherApp(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.tts_manager = TTSManager()
+
+
         self.city_label = QLabel("Enter city name: ", self)
-        self.city_input = QLineEdit(self)
-        self.state_label = QLabel("Enter state ncode: ", self)
-        self.state_input = QLineEdit(self)
+        self.city_input = SpeakableLineEdit(self.tts_manager, "City name", self)
+        self.state_label = QLabel("Enter state abbr.: ", self)
+        self.state_input = SpeakableLineEdit(self.tts_manager, "State abbreviation", self)
         self.get_weather_button = QPushButton("Get Weather", self)
         self.temperature_label = QLabel(self)
         self.emoji_label = QLabel(self)
         self.description_label = QLabel(self)
-        self.tts_engine = pyttsx3.init(driverName='sapi5')
-        voices = self.tts_engine.getProperty('voices')
-        self.tts_engine.setProperty('voice', voices[0].id)  # Or whichever index worked
-        self.tts_engine.setProperty('volume', 1.0)
-        self.tts_engine.setProperty('rate', 150)
+        
+        
         self.initUI()
+        self.setFocus()
 
     def initUI(self):
         self.setWindowTitle("Weather App")
@@ -117,12 +150,16 @@ class WeatherApp(QWidget):
 
         except requests.exceptions.ConnectionError:
             self.display_error("Connection Error:\nCheck your internet connection")
+            self.speak("Connection Error: Check your internet connection")
         except requests.exceptions.Timeout:
             self.display_error("Timeout Error:\nThe request timed out")
+            self.speak("Timeout Error: The request timed out")
         except requests.exceptions.TooManyRedirects:
             self.display_error("Too many Redirects:\nCheck the URL")
+            self.speak("Too many Redirects: Check the URL")
         except requests.exceptions.RequestException as req_error:
-            self.display_error(f"Request Error:\n{req_error}")
+            self.display_error(f"Please fill in all of required fields")
+            self.speak(f"Please fill in all of required fields")
 
     def display_error(self, message):
         self.temperature_label.setStyleSheet("font-size: 30px;")
@@ -132,12 +169,13 @@ class WeatherApp(QWidget):
         self.speak(message)
 
     def start_timer(self):
-        timer = threading.Timer(1, self.speak, args=("Please enter your city and state code",))
+        # Use the TTS manager to speak the opening message
+        timer = threading.Timer(1, self.tts_manager.speak, args=("Please enter your city name and state abbreviation. Then click the get weather button in the center screen.",))
         timer.start()
 
     def speak(self, text):
-        self.tts_engine.say(text)
-        self.tts_engine.runAndWait()
+        # Use the TTS manager to speak the text
+        self.tts_manager.speak(text)
 
 
     def display_weather(self, data):
@@ -152,9 +190,21 @@ class WeatherApp(QWidget):
         self.emoji_label.setText(self.get_weather_emoji(weather_id))
         self.description_label.setText(weather_description)
 
-        city = self.city_input.text()
+        city = self.city_input.text().replace(" ", "_")
+        read_city = self.city_input.text().strip()
         state = self.state_input.text()
-        self.speak(f"The current temperature in {city}, {state} is {temperature_f:.0f} degrees Fahrenheit with {weather_description}.")
+        self.ask_for_walk(read_city, state, temperature_f, weather_description)
+
+    def ask_for_walk(self, read_city, state, temperature_f, weather_description):
+        self.speak(f"The current temperature in {read_city}, {state} is {temperature_f:.0f} degrees Fahrenheit with {weather_description}. Would you like to go for a walk today? Press L to activate voice command")
+        # Start the speech recognition in a separate thread
+        # threading.Thread(target=self.start_listening_after_tts, daemon=True).start()
+
+    # def start_listening_after_tts(self):
+    #     # Wait for the TTS to finish before starting speech recognition
+    #     self.tts_manager.queue.join()  # Wait until the TTS queue is empty
+    #     stt.startListening()  # Start the speech recognition
+            
 
     @staticmethod
     def get_weather_emoji(weather_id):
@@ -181,6 +231,18 @@ class WeatherApp(QWidget):
             return "☁"
         else:
             return ""
+        
+class SpeakableLineEdit(QLineEdit):
+    
+    def __init__(self, tts_manager, message, parent=None):
+        super().__init__(parent)
+        self.tts_manager = tts_manager
+        self.message = message
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self.tts_manager.stop()  # Stop any ongoing messages
+        self.tts_manager.speak(self.message)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
