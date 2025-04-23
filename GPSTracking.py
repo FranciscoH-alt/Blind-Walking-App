@@ -18,7 +18,7 @@ class GPSNavigator(QObject):
         super().__init__()
         self.engine = None  # Remove TTS engine initialization
         self.qml_engine = engine
-        self.gmaps_client = googlemaps.Client(key="AIzaSyA1w757VIbuBAZ2rAm3b1TFlZ4osr71hgA")  # Replace with your API key
+        self.gmaps_client = googlemaps.Client(key="Api_key_needed")  # Replace with your API key
 
         root_objects = engine.rootObjects()
         if not root_objects:
